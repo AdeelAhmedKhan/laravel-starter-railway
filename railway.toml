@@ -1,0 +1,34 @@
+# Railway Config as Code — app service.
+# https://docs.railway.com/config-as-code/reference
+#
+# Template wiring (done in the Railway dashboard / Template Composer,
+# not in this file — there is no template.json format):
+#   - Add a Postgres service; on this service set DB_CONNECTION=pgsql
+#     and reference it as DATABASE_URL=${{Postgres.DATABASE_URL}}
+#     (private network). config/database.php accepts DATABASE_URL
+#     (Laravel's own default is DB_URL — either works).
+#   - APP_KEY must be set as a service variable (generate with
+#     `php artisan key:generate --show` and paste the value).
+#   - APP_URL must be set to the public domain once generated.
+#   - Healthcheck must return HTTP 200 directly (no redirect).
+#
+# WHY builder = "DOCKERFILE": Railpack (the default builder)
+# resolves PHP versions fuzzily and documents no exact-patch pin.
+# The Dockerfile pins php:8.5.12-fpm-alpine exactly — the release
+# that patches CVE-2026-109618 / CVE-2026-109619. Railway
+# auto-detects a Dockerfile at the repo root; this setting makes it
+# explicit.
+
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+startCommand = "/usr/local/bin/entrypoint.sh"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+preDeployCommand = "php artisan migrate --force"
+
+# No PORT setting needed: Railway injects $PORT at runtime and the
+# entrypoint binds nginx to it.
