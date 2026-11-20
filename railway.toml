@@ -3,10 +3,12 @@
 #
 # Template wiring (done in the Railway dashboard / Template Composer,
 # not in this file — there is no template.json format):
-#   - Add a Postgres service; on this service set DB_CONNECTION=pgsql
-#     and reference it as DATABASE_URL=${{Postgres.DATABASE_URL}}
-#     (private network). config/database.php accepts DATABASE_URL
-#     (Laravel's own default is DB_URL — either works).
+#   - Add a MySQL service (this template ships one, configured like
+#     the MySQL 9.7 LTS template); on this service set
+#     DB_CONNECTION=mysql and reference the database as
+#     DATABASE_URL=${{MySQL.MYSQL_URL}} (private network).
+#     config/database.php accepts DATABASE_URL on the mysql
+#     connection (Laravel's own default is DB_URL — either works).
 #   - APP_KEY must be set as a service variable (generate with
 #     `php artisan key:generate --show` and paste the value).
 #   - APP_URL must be set to the public domain once generated.

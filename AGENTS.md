@@ -7,8 +7,10 @@ keep it runnable, minimal, and honest.
 ## Stack (pinned — do not bump majors casually)
 
 PHP **8.5.12** (exact, via `php:8.5.12-fpm-alpine` in the Dockerfile)
-+ Laravel **13.38.0** + Sanctum **4.3.3** + Postgres 18 (Railway
-service; SQLite only for local parity testing) + nginx (Alpine).
++ Laravel **13.38.0** + Sanctum **4.3.3** + MySQL **9.7.4** LTS
+(Railway service; SQLite only for local parity testing) + nginx
+(Alpine). The database switched from Postgres to MySQL on
+2026-11-20 (the sibling Laravel AI SDK starter stays on Postgres).
 Versions verified 2026-10-27 — Packagist for Laravel/Sanctum,
 Docker Hub for the PHP tags; see README "Stack & versions".
 
@@ -16,9 +18,10 @@ Docker Hub for the PHP tags; see README "Stack & versions".
 
 **Never fake a capability.** `/api/health` reports the REAL database
 status — a 200 with `db: "error"` is a failure, not a pass. The
-Postgres path is implemented but NOT live-tested locally (tests run
-on SQLite); the README says so plainly and that note stays until a
-live Postgres round-trip actually passes. No APP_KEY means the
+MySQL path's proof is the live Railway deploy test of 2026-11-20
+(local tests run on SQLite); the README states exactly what that
+test covered, and that wording stays until a broader MySQL
+round-trip actually passes. No APP_KEY means the
 container refuses to boot — it never silently runs unencrypted.
 Anything not configured reports clearly instead of crashing.
 
@@ -26,9 +29,8 @@ Anything not configured reports clearly instead of crashing.
 
 Railway already has Laravel templates (Laravel 13 + PHP 8.4 +
 MySQL; an official Laravel starter with Postgres) — but none is
-security-hardened, none is pinned to the patched PHP 8.5.12, and
-none combines Laravel 13 + Postgres + Sanctum + hardening. This one
-exists because of two October 2026 disclosures:
+security-hardened, and none is pinned to the patched PHP 8.5.12.
+This one exists because of two October 2026 disclosures:
 
 - **php2shell** — CVE-2026-109618 / CVE-2026-109619 (CVSS v4.0 9.2):
   unauthenticated RCE in PHP itself, fixed in PHP 8.5.12 / 8.4.27 /
@@ -117,10 +119,12 @@ composer audit         # must be clean before any release
   deployment.
 - DON'T add the `token` auth guard anywhere. Sanctum is the only
   token auth in this starter (CVE-2026-114509).
-- DON'T claim the Postgres path is tested without a real Postgres
-  round-trip. Local tests run on SQLite only; the README says so
-  plainly, and that note stays until a live Postgres round-trip
-  (migrate + seed + login through Postgres) actually passes.
+- DON'T claim the MySQL path is tested beyond what the evidence
+  shows. The auth flow passed locally on SQLite (the test suite)
+  and, pre-switch, against a local Postgres 18 server on
+  2026-11-01 (evidence `docs/demo-auth-flow-postgres.json`). The
+  MySQL proof is the live Railway deploy test of 2026-11-20; the
+  README states exactly what it covered.
 - DON'T enable `session.upload_progress` or mod_php. Both are
   disabled on purpose (CVE-2026-115560 / php2shell).
 - DON'T set `APP_DEBUG=true` in production, and don't add a feature
@@ -132,14 +136,16 @@ composer audit         # must be clean before any release
 
 ## Railway notes
 
-- Add a Postgres service; set `DB_CONNECTION=pgsql` and
+- The template ships a MySQL service (mysql:9.7.4, configured like
+  the MySQL 9.7 LTS template); set `DB_CONNECTION=mysql` and
   `DATABASE_URL` as a reference variable,
-  `${{Postgres.DATABASE_URL}}`, on the app service.
+  `${{MySQL.MYSQL_URL}}`, on the app service.
 - Set `APP_KEY` (generate with `php artisan key:generate --show`)
   and `APP_URL` (the public domain) as service variables.
 - The Dockerfile is the PHP pin: Railway builds the exact
   `php:8.5.12-fpm-alpine` image. If that tag ever disappears from
   Docker Hub, the build fails loudly instead of silently using a
   different PHP — that is the intended behaviour.
-- Live deploy and the Postgres path are NOT yet tested — see README
-  "What is still unproven".
+- Live deploy on Railway first ran on 2026-11-20 (the MySQL
+  switch test) — see README "What is still unproven" for exactly
+  what it covered and what remains open.

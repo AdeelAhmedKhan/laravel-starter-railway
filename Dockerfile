@@ -31,9 +31,9 @@
 # ------------------------------------------------------------------
 FROM php:8.5.12-cli-alpine AS build
 
-RUN apk add --no-cache git unzip libzip-dev libpq-dev sqlite-dev icu-dev \
+RUN apk add --no-cache git unzip libzip-dev sqlite-dev icu-dev \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_pgsql pdo_sqlite bcmath intl zip pcntl opcache
+        pdo_mysql pdo_sqlite bcmath intl zip pcntl
 
 COPY --from=composer:2.9.8 /usr/bin/composer /usr/bin/composer
 
@@ -50,9 +50,18 @@ RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
 # ------------------------------------------------------------------
 FROM php:8.5.12-fpm-alpine AS runtime
 
-RUN apk add --no-cache nginx libzip libpq sqlite-libs icu \
+# The -dev packages are needed to COMPILE the extensions below and
+# are removed again in the same layer (live Railway deploy tests of
+# the sibling Laravel AI SDK starter failed without them).
+# pdo_mysql needs no external client library: it builds on mysqlnd,
+# which ships with PHP. No opcache in the list: PHP 8.5 builds
+# OPcache into the binary, so there is no module to install.
+RUN apk add --no-cache nginx libzip sqlite-libs icu \
+    && apk add --no-cache --virtual .build-deps \
+        libzip-dev sqlite-dev icu-dev \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_pgsql pdo_sqlite bcmath intl zip pcntl opcache \
+        pdo_mysql pdo_sqlite bcmath intl zip pcntl \
+    && apk del .build-deps \
     && rm -rf /var/cache/apk/*
 
 # PHP hardening: see docker/php/security.ini for what each line does.

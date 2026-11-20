@@ -46,7 +46,10 @@ return [
 
         'mysql' => [
             'driver' => 'mysql',
-            'url' => env('DB_URL'),
+            // Railway's MySQL service exposes its connection string as
+            // a reference variable; accept DATABASE_URL first (the app
+            // is wired with it on Railway), then Laravel's DB_URL.
+            'url' => env('DATABASE_URL') ?: env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -86,8 +89,9 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            // Railway's Postgres service exposes DATABASE_URL; Laravel
-            // reads DB_URL by default. Accept either, DATABASE_URL first.
+            // Accept DATABASE_URL as well as Laravel's DB_URL.
+            // (DATABASE_URL is the app's Railway wiring for the
+            // mysql connection above; kept here for parity.)
             'url' => env('DATABASE_URL') ?: env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),

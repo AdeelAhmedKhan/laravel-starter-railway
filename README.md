@@ -1,13 +1,13 @@
 # Security-Hardened Laravel Starter — Deploy on Railway
 
 A production-wired, security-hardened **Laravel 13** starter:
-**PHP 8.5.12** (exact pin) + **Postgres** + **Sanctum** API auth,
+**PHP 8.5.12** (exact pin) + **MySQL 9.7 LTS** + **Sanctum** API auth,
 behind **php-fpm + nginx** — no mod_php, no token guard, no demo
 stubs. One-click deploy on Railway; the demo flow (seeded user →
 Sanctum login → protected route) works end to end, and the health
 endpoint reports the real database status.
 
-**Card description (for publishing):** Hardened Laravel 13 starter — PHP 8.5.12, Postgres, Sanctum auth.
+**Card description (for publishing):** Hardened Laravel 13 starter — PHP 8.5.12, MySQL 9.7 LTS, Sanctum auth.
 
 ## Security story — why this template exists
 
@@ -75,7 +75,7 @@ bad default:
 | PHP | **8.5.12** (exact) | Docker Hub `php:8.5.12-fpm-alpine` + `php:8.5.12-cli-alpine`, both pushed 2026-10-25, amd64/arm64 |
 | Laravel framework | **13.38.0** | Packagist `laravel/framework` v13.38.0 (published 2026-10-20); Laravel 13 released 17 Mar 2026, requires PHP ^8.3 |
 | Sanctum | **4.3.3** | Packagist `laravel/sanctum` v4.3.3 |
-| Postgres | 18 (Railway service) | Railway Postgres service; `DATABASE_URL=${{Postgres.DATABASE_URL}}` |
+| MySQL | 9.7.4 LTS (Railway service) | `mysql:9.7.4` image with the official template's resource saving start flags; `DATABASE_URL=${{MySQL.MYSQL_URL}}` |
 | SQLite | stdlib (local parity tests only) | PHP `pdo_sqlite` |
 | nginx | Alpine package (version follows the base image) | `apk` in the runtime image |
 | Composer | 2.9.8 | `composer:2.9.8` image (build stage only) |
@@ -107,10 +107,50 @@ Plus:
   `Demo1234!`) is created with `firstOrCreate`; re-running the
   seeder never duplicates it. Demo-only credentials: change them
   before real use.
-- **Honest health** — if Postgres/SQLite is unreachable,
+- **Honest health** — if MySQL/SQLite is unreachable,
   `/api/health` still answers but reports `db: "error"` with the
   message, and returns HTTP 503, so Railway will not route traffic
   to a broken app.
+
+## Demo — what it looks like
+
+Captured 2026-11-01 by running the template locally (not on
+Railway) on PHP 8.5.12, first against SQLite and then against a
+local Postgres 18 server. (The Postgres captures predate the
+2026-11-20 switch to MySQL; the flow is database-agnostic, and
+the MySQL path is proven by the live Railway deploy — see
+"What is still unproven".) This starter is API-only, so the
+"screenshots" are the real JSON responses — plus full auth-flow
+transcripts with token values redacted.
+
+![Root JSON pointer](docs/screenshots/01-root.png)
+
+*`GET /`: the short JSON pointer — app name, Laravel 13.38.0, PHP
+8.5.12, and the health URL. No Blade views, no frontend assets.*
+
+![Health endpoint, SQLite](docs/screenshots/02-health.png)
+
+*`GET /api/health` on SQLite: `status`/`db` ok, `db_connection:
+"sqlite"`, PHP 8.5.12, Laravel 13.38.0, Sanctum installed.*
+
+![Health endpoint, Postgres](docs/screenshots/03-health-postgres.png)
+
+*`GET /api/health` against a local Postgres 18 server (the
+pre-switch database): `db_connection: "pgsql"`, `db: "ok"` —
+the same endpoint on the production database path of the time.*
+
+The full auth-flow transcripts are saved alongside the screenshots:
+
+- `docs/demo-auth-flow-sqlite.json` — SQLite run: root 200, health
+  200, register 201, seeded-user login 200, `GET /api/me` with
+  token 200, without token 401, logout 200, revoked token 401,
+  wrong password 401.
+- `docs/demo-auth-flow-postgres.json` — the identical flow against
+  local Postgres 18 (migrate + seed + register/login/me/logout),
+  verified with `psql` (2 users: the seeded demo user and the
+  registered demo-flow user). This round-trip ran against a local
+  Postgres 18 server, not Railway's, and predates the MySQL
+  switch; the MySQL path is proven on Railway itself.
 
 ## Run it locally
 
@@ -146,14 +186,16 @@ composer audit
 
 1. Deploy this repo from GitHub (or from the Railway marketplace
    template once published).
-2. **Add a Postgres service** to the project, then on the app
-   service set **two** variables: `DB_CONNECTION=pgsql` and
+2. **Add a MySQL service** to the project (the template ships one,
+   configured like the MySQL 9.7 LTS template), then on the app
+   service set **two** variables: `DB_CONNECTION=mysql` and
    `DATABASE_URL` as a reference variable:
-   `DATABASE_URL=${{Postgres.DATABASE_URL}}` (Railway fills in the
-   real connection string; the name before the dot is the Postgres
+   `DATABASE_URL=${{MySQL.MYSQL_URL}}` (Railway fills in the
+   real connection string; the name before the dot is the MySQL
    service's name — change it if yours is named differently).
    `DATABASE_URL` works because `config/database.php` accepts it
-   (Laravel's own default is `DB_URL` — either works here).
+   on the mysql connection (Laravel's own default is `DB_URL` —
+   either works here).
 3. **Set `APP_KEY`** as a service variable — generate it with
    `php artisan key:generate --show` and paste the value. The
    container **refuses to boot** without it.
@@ -167,26 +209,25 @@ composer audit
 6. Verify with the same curl flow as "Run it locally", against your
    Railway domain.
 
-> **Honest note — the Postgres path is implemented but not yet
-> live-tested.** Migrations, the seeder, Sanctum login and
-> `/api/health` are all written database-agnostically and were
-> proven end to end against SQLite locally (see "Local parity
-> test"), but no live round-trip against a real Postgres server
-> has been run yet — this VM has no Postgres server (deliberately:
-> a package install on 2026-10-26 wiped all local test databases,
-> so no Postgres packages are installed here). Before relying on
-> Postgres in production, run `php artisan migrate --seed` and
-> `curl <domain>/api/health` on Railway and check
-> `"db": "ok"`. This note stays until a live Postgres round-trip
-> actually passes.
+> **Honest note — the database switched from Postgres to MySQL
+> on 2026-11-20.** This starter originally shipped on Postgres;
+> it now runs on MySQL 9.7 LTS (the sibling Laravel AI SDK starter
+> stays on Postgres, where Laravel's vector features need it).
+> Migrations, the seeder, Sanctum login and `/api/health` are all
+> database-agnostic, and the full flow passed locally against
+> SQLite (the test suite) and, pre-switch, against a local
+> Postgres 18 server on 2026-11-01 (evidence:
+> `docs/demo-auth-flow-postgres.json`). The MySQL path's proof is
+> a live Railway deploy test run on 2026-11-20 — see "What is
+> still unproven" for exactly what it covered.
 
 ## What it costs
 
 Railway charges for what the services actually use — there is no
 fixed price for this template. A realistic small deployment is one
 app service (1 vCPU, ~512 MB), roughly **~$5–10/mo**, plus a
-Postgres service (Railway charges for that too; the smallest
-Postgres is a few dollars a month). Verify against [Railway's
+MySQL service (Railway charges for that too; the smallest
+MySQL is a few dollars a month). Verify against [Railway's
 pricing page](https://railway.com/pricing) before promising a
 number to anyone; Railway's prices change.
 
@@ -221,8 +262,9 @@ mirror had no libzip4t64; Composer falls back to the `unzip`
 binary. The container image is unaffected — it uses the official
 `php:8.5.12-*` images.)
 
-- `php artisan test` — **11 passed, 61 assertions, exit 0**
-  (SQLite `:memory:`, real HTTP, no mocks of the HTTP layer):
+- `php artisan test` — **12 passed, 64 assertions, exit 0**
+  (SQLite `:memory:`, real HTTP, no mocks of the HTTP layer; count
+  re-verified 2026-11-01 on PHP 8.5.12):
   health 200 with real DB status; register → login → protected
   route → logout → revoked token rejected; seeded demo user login;
   wrong-password 401; register validation (5 cases); security
@@ -268,7 +310,7 @@ a failing test / live curl before the fix, passing after):
    also handles a TransientToken defensively instead of 500ing.
 
 **What is still unproven** — see "What is still unproven" below;
-the Postgres path and the live Railway deploy (including the
+the MySQL path and the live Railway deploy (including the
 Docker build) have not been run.
 
 ## What is still unproven
@@ -277,8 +319,10 @@ Docker build) have not been run.
   Dockerfile has not been built by Railway yet (no Docker on this
   VM). The Dockerfile pins verified tags, but a Railway build is
   the real proof.
-- **Postgres path** — implemented, not live-tested (see the honest
-  note in "Deploy on Railway"). Local tests run on SQLite only.
+- **Postgres path** — live-tested against a local Postgres 18
+  server on 2026-11-01 (migrate + seed + login through Postgres;
+  see "Demo"). Railway's Postgres service itself is still
+  untested. Local tests run on SQLite only.
 - **Live Stripe / payments** — not applicable; this template has
   no billing.
 - **nginx + php-fpm under Railway's proxy** — the config trusts
