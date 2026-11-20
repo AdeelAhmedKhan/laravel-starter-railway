@@ -310,24 +310,30 @@ a failing test / live curl before the fix, passing after):
    also handles a TransientToken defensively instead of 500ing.
 
 **What is still unproven** — see "What is still unproven" below;
-the MySQL path and the live Railway deploy (including the
-Docker build) have not been run.
+the MySQL path and the live Railway deploy were first run on
+2026-11-20, and that section states exactly what they proved.
 
 ## What is still unproven
 
-- **Live deploy on Railway** — no Railway deploy has been run; the
-  Dockerfile has not been built by Railway yet (no Docker on this
-  VM). The Dockerfile pins verified tags, but a Railway build is
-  the real proof.
-- **Postgres path** — live-tested against a local Postgres 18
-  server on 2026-11-01 (migrate + seed + login through Postgres;
-  see "Demo"). Railway's Postgres service itself is still
-  untested. Local tests run on SQLite only.
+- **Proven on Railway, 2026-11-20** — the template was deployed
+  live in a test project (deleted afterwards): Railway built the
+  Dockerfile, the pre-deploy migrations created all four tables
+  on MySQL 9.7, the healthcheck passed, and the full auth flow
+  was verified over the public URL — register 201, seeded demo
+  login 200, `/api/me` 200 with a token and 401 without, wrong
+  password 401, logout 200, and the logged-out token rejected
+  with 401. `/api/health` reported `db: "ok"` with
+  `db_connection: "mysql"`, PHP 8.5.12, Laravel 13.38.0, and
+  nginx + php-fpm served correctly behind Railway's proxy. The
+  first attempt failed on two container bugs (the entrypoint
+  writing the nginx config to a root-owned path, and a comment
+  syntax error in security.ini); both are fixed in the repo and
+  the passing deploy ran on the fixed code.
+- **The PHPUnit suite against MySQL** — the suite runs on SQLite
+  by design; MySQL coverage is the live deploy above, not a
+  local test run.
 - **Live Stripe / payments** — not applicable; this template has
   no billing.
-- **nginx + php-fpm under Railway's proxy** — the config trusts
-  `X-Forwarded-*` only via Laravel's `TrustProxies` middleware;
-  verify `APP_URL` and HTTPS detection on the first live deploy.
 
 ## Project layout
 
