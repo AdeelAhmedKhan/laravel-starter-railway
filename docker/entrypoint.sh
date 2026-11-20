@@ -13,7 +13,7 @@ export PORT
 
 # Render nginx config from the template.
 # (envsubst is not in the Alpine image; use sed on the one variable.)
-sed "s|\${PORT}|${PORT}|g" /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+sed "s|\${PORT}|${PORT}|g" /etc/nginx/nginx.conf.template > /run/nginx/nginx.conf
 
 # Laravel caches: rebuild on every container start so a stale
 # config cache from the build image can never ship.
@@ -39,5 +39,8 @@ php artisan migrate --force
 php artisan db:seed --force --quiet || true
 
 # php-fpm in the background, nginx in the foreground (PID 1).
+# -c points nginx at the config rendered into /run/nginx (the
+# non-root www-data user cannot write /etc/nginx; the sibling
+# starter's live tests proved this the hard way).
 php-fpm -D
-exec nginx -g 'daemon off;'
+exec nginx -c /run/nginx/nginx.conf -g 'daemon off;'
