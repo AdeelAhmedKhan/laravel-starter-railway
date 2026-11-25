@@ -1,13 +1,13 @@
 # Security-Hardened Laravel Starter — Deploy on Railway
 
 A production-wired, security-hardened **Laravel 13** starter:
-**PHP 8.5.12** (exact pin) + **MySQL 9.7 LTS** + **Sanctum** API auth,
+**PHP 8.5.13** (digest pinned) + **MySQL 9.7 LTS** + **Sanctum** API auth,
 behind **php-fpm + nginx** — no mod_php, no token guard, no demo
 stubs. One-click deploy on Railway; the demo flow (seeded user →
 Sanctum login → protected route) works end to end, and the health
 endpoint reports the real database status.
 
-**Card description (for publishing):** Hardened Laravel 13 starter — PHP 8.5.12, MySQL 9.7 LTS, Sanctum auth.
+**Card description (for publishing):** Hardened Laravel 13 starter — PHP 8.5.13, MySQL 9.7 LTS, Sanctum auth.
 
 ## Security story — why this template exists
 
@@ -28,7 +28,7 @@ bad default:
   `docker/php/security.ini`, and this starter never uses
   upload-progress tracking, so it costs nothing.
 - **This template's answer:** the Dockerfile pins
-  `php:8.5.12-fpm-alpine` **exactly** (Railpack resolves PHP
+  `php:8.5.13-fpm-alpine` **by digest** (Railpack resolves PHP
   fuzzily — no exact-patch pin is documented — so only a Dockerfile
   guarantees the patched release on Railway), and the container
   runs **php-fpm + nginx, never mod_php**: mod_php runs the
@@ -53,7 +53,7 @@ bad default:
 
 | Control | Where |
 | --- | --- |
-| PHP 8.5.12 exact pin (patched RCEs) | `Dockerfile` (`php:8.5.12-fpm-alpine`, `php:8.5.12-cli-alpine`) |
+| PHP 8.5.13 digest pin (patched RCEs) | `Dockerfile` (`php:8.5.13-fpm-alpine@sha256:087c0ac7…`, `php:8.5.13-cli-alpine@sha256:5778fd0b…`) |
 | No mod_php; php-fpm + nginx, single PHP entry point | `Dockerfile`, `docker/nginx.conf` |
 | `session.upload_progress.enabled=0` (CVE-2026-115560) | `docker/php/security.ini` |
 | `expose_php=0`, `display_errors=0`, errors to stderr | `docker/php/security.ini`, `docker/php/php-fpm.conf` |
@@ -72,7 +72,7 @@ bad default:
 
 | Piece | Version | Source |
 | --- | --- | --- |
-| PHP | **8.5.12** (exact) | Docker Hub `php:8.5.12-fpm-alpine` + `php:8.5.12-cli-alpine`, both pushed 2026-10-25, amd64/arm64 |
+| PHP | **8.5.13** (digest pinned) | Docker Hub `php:8.5.13-fpm-alpine@sha256:087c0ac7…` + `php:8.5.13-cli-alpine@sha256:5778fd0b…`, digests verified 2026-11-25, amd64 |
 | Laravel framework | **13.38.0** | Packagist `laravel/framework` v13.38.0 (published 2026-10-20); Laravel 13 released 17 Mar 2026, requires PHP ^8.3 |
 | Sanctum | **4.3.3** | Packagist `laravel/sanctum` v4.3.3 |
 | MySQL | 9.7.4 LTS (Railway service) | `mysql:9.7.4` image with the official template's resource saving start flags; `DATABASE_URL=${{MySQL.MYSQL_URL}}` |
@@ -202,7 +202,7 @@ composer audit
 4. Set `APP_URL` to the public domain once generated (Networking →
    Generate Domain). `APP_ENV` should stay `production` and
    `APP_DEBUG` must stay `false`.
-5. Deploy. Railway builds the Dockerfile (exact PHP 8.5.12),
+5. Deploy. Railway builds the Dockerfile (PHP 8.5.13, digest pinned),
    runs `php artisan migrate --force` as the pre-deploy command,
    then healthchecks `GET /api/health` — it must answer 200 with
    `"db": "ok"`.

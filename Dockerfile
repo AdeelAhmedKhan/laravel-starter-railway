@@ -18,18 +18,18 @@
 # path. See README "Security story".
 #
 # Tags verified on Docker Hub 2026-10-27 (hub.docker.com/v2):
-#   php:8.5.12-fpm-alpine  (pushed 2026-10-25, amd64/arm64)
-#   php:8.5.12-cli-alpine  (pushed 2026-10-25, amd64/arm64)
-# Both are the 8.5.12 bugfix release that patches CVE-2026-109618
-# and CVE-2026-109619. Do not change the tag without re-verifying it
-# on Docker Hub first.
+#   php:8.5.13-fpm-alpine@sha256:087c0ac7...  (amd64 digest, verified 2026-11-25)
+#   php:8.5.13-cli-alpine@sha256:5778fd0b...  (amd64 digest, verified 2026-11-25)
+# Both are the 8.5.13 bugfix release (successor to 8.5.12, which
+# patched CVE-2026-109618 and CVE-2026-109619). Do not change the
+# tag without re-verifying it on Docker Hub first.
 
 # ------------------------------------------------------------------
 # Stage 1 — build: Composer install (no dev deps, no scripts that
 # need a database). Uses the CLI variant of the SAME pinned PHP so
-# the lockfile is resolved and autoloaded against 8.5.12.
+# the lockfile is resolved and autoloaded against 8.5.13.
 # ------------------------------------------------------------------
-FROM php:8.5.12-cli-alpine AS build
+FROM php:8.5.13-cli-alpine@sha256:5778fd0bd7bf8c1c823575a3179b4311ef9da6524c6f9f984e71fcacee2b2177 AS build
 
 RUN apk add --no-cache git unzip libzip-dev sqlite-dev icu-dev \
     && docker-php-ext-install -j"$(nproc)" \
@@ -48,7 +48,7 @@ RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
 # Stage 2 — runtime: php-fpm + nginx. No Composer, no git, no build
 # tools in the final image. Runs as a non-root user.
 # ------------------------------------------------------------------
-FROM php:8.5.12-fpm-alpine AS runtime
+FROM php:8.5.13-fpm-alpine@sha256:087c0ac782305a3a78f6d981d06492a31096317ef60fda5ddc54353708a3d99b AS runtime
 
 # The -dev packages are needed to COMPILE the extensions below and
 # are removed again in the same layer (live Railway deploy tests of

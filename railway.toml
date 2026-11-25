@@ -16,7 +16,7 @@
 #
 # WHY builder = "DOCKERFILE": Railpack (the default builder)
 # resolves PHP versions fuzzily and documents no exact-patch pin.
-# The Dockerfile pins php:8.5.12-fpm-alpine exactly — the release
+# The Dockerfile pins php:8.5.13-fpm-alpine by digest — the release
 # that patches CVE-2026-109618 / CVE-2026-109619. Railway
 # auto-detects a Dockerfile at the repo root; this setting makes it
 # explicit.
